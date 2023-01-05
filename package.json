@@ -1,0 +1,29 @@
+{
+  "name": "chess-stockfish",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "package": "./node_modules/.bin/pkg ."
+  },
+  "bin": {
+    "stockfish-server": "server.js"
+  },
+  "pkg": {
+    "assets": [
+      "node_modules/stockfish/src/stockfish.wasm"
+    ]
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.20.1",
+    "express": "^4.18.2",
+    "nodemon": "^2.0.20",
+    "pkg": "^5.8.0",
+    "stockfish": "^11.0.0"
+  }
+}

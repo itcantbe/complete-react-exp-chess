@@ -1,0 +1,44 @@
+.primaryModal .modal-content .modal-header{
+    flex-direction: column;
+    justify-content: center;
+    border-bottom: none;
+    font-size: 50px;
+}
+.primaryModal .modal-content .modal-header .reason{
+    font-size: 15px;
+}
+
+.primaryModal .modal-content .modal-body{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-bottom: none;
+    align-items: center;
+}
+.primaryModal .modal-content .modal-body .result{
+    font-size: 32px;
+}
+.ml-5{
+    margin-left: 2rem;
+}
+.scrollTable{
+    overflow:hidden;
+    overflow-y: auto;
+    height: 300px;
+}
+.scrollTable::-webkit-scrollbar {
+    width: 5px;
+  }
+   
+.scrollTable::-webkit-scrollbar-track {
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+  }
+   
+.scrollTable::-webkit-scrollbar-thumb {
+    background-color: darkgrey;
+    outline: 1px solid slategrey;
+    border-radius: 5px;
+  }
+.text-align-center{
+    text-align: center;
+}
