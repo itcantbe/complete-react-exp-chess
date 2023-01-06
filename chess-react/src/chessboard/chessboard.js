@@ -23,8 +23,12 @@ class ConfiguredBoard extends React.Component {
             fromInputFen:'',
             pgn:'',
             historyPGN:[],
-            lastMove:-1
+            lastMove:-1,
+            bestmove:{}
         }
+    }
+    componentDidMount() {
+        this.getSuggestion()
     }
     //Validate if the move if legal 
     makeAMove= (movefrom,moveto,piece)=>{
@@ -57,15 +61,8 @@ class ConfiguredBoard extends React.Component {
             }
             this.setState(()=>{
                 return {inputFen:this.game.fen(),historyPGN:this.game.history(),lastMove:this.game.history().length-1}
-            })
-            axios.post(`../../../getmove`, {fen: this.game.fen(), depth:"18"}).then(function (response) {
-                console.log(response.data);
-              })
-              .catch(function (error) {
-                console.log(error);
-              });
-              
-              
+            }) 
+            this.getSuggestion()                        
             return true;
         }
         else{
@@ -220,9 +217,8 @@ class ConfiguredBoard extends React.Component {
         return(
             <div className="mt-3">
                 <h4 style={{textAlign:'center'}}>Import Section</h4>
-                <div className="form-group">
-                    <label>Enter FEN string</label>
-                    <input className="form-control" id="fenInput" value={this.state.fromInputFen} onChange={evt=>this.updateFenFromInput(evt)} />
+                <div className="form-group d-flex flex-row">
+                    <input className="form-control" id="fenInput" value={this.state.fromInputFen} onChange={evt=>this.updateFenFromInput(evt)} placeholder="Enter FEN string"/>
                     <button className="btn btn-outline-primary" onClick={this.loadGame} >Load FEN</button>
                 </div>  
                 <div className="form-group">
@@ -267,18 +263,83 @@ class ConfiguredBoard extends React.Component {
         return this.game.fen()
     }
     getEval = ()=>{
-        axios.post(`../../../getEval`, {fen: this.game.fen(), depth:"18"}).then(function (response) {
+        axios.post(`../../../getEval`, {fen: this.game.fen(), depth:"18"}).then((response)=> {
             console.log(response.data);
           })
           .catch(function (error) {
             console.log(error);
           });
     }
+    getSuggestion = () => {
+        let data;
+        this.setState(()=>{
+            return {bestmove:{}}
+        })
+        axios.post(`../../../getmove`, {fen: this.game.fen(), depth:"18"}).then((response) => {
+            data= response.data
+            this.setState(()=>{
+                return {bestmove:data.bestMove}
+            })
+            
+        })
+          .catch(function (error) {
+              console.log(error);
+            });
+        console.log(this.state.bestmove)
+    }
+    sendSuggestion = () => {
+        if(this.state.bestmove.from){
+            let color = ''
+            let piece = ''
+            if(this.game.get(this.state.bestmove.from).color === 'w'){
+                color = "White"
+            } 
+            else{
+                color = "Black"
+            }
+            switch(this.game.get(this.state.bestmove.from).type){
+                case 'p':
+                    piece = 'Pawn';
+                    break;
+                case 'r':
+                    piece = 'Rook';
+                    break;
+                case 'n':
+                    piece = 'Knight';
+                    break;
+                case 'b':
+                    piece = 'Bishop';
+                    break;
+                case 'k':
+                    piece = 'King';
+                    break;
+                case 'q':
+                    piece = 'Queen';
+                    break;
+            }
+            return(
+                <div>
+                    <h4>Best Move:</h4>
+                    <p>{color} {piece} on {this.state.bestmove.from} to {this.state.bestmove.to}</p>
+                </div>
+            )
+        }
+        else{
+            return(
+                <div>
+                    Loading Best Move
+                </div>
+            )
+        }
+    }
     //select game from PGN file
     render(){
         return(
             !this.state.flag?
             <div className="col-12 d-flex justify-content-center mt-3">
+                <div className="d-flex flex-column col-2">
+                    <div>{this.sendSuggestion()}</div>
+                </div>
                 <div>
                 <Chessboard id="BasicBoard" 
                 animationDuration={200}
