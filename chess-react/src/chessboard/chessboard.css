@@ -21,6 +21,9 @@
 .ml-5{
     margin-left: 2rem;
 }
+.mr-3{
+    margin-right:1rem;
+}
 .scrollTable{
     overflow:hidden;
     overflow-y: auto;
@@ -41,4 +44,17 @@
   }
 .text-align-center{
     text-align: center;
+}
+  input[type=range][orient=vertical]
+{
+    writing-mode: bt-lr; /* IE */
+    -webkit-appearance: slider-vertical; /* Chromium */
+    height: 490px;
+    width: 100%;
+    border-radius: 5px;  
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
 }

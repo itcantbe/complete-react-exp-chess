@@ -1,9 +1,8 @@
-import React from "react";
+import React, { Component }  from 'react';
 import '../chessboard/chessboard.css'
 import { Chessboard } from "react-chessboard";
 import {Chess} from "chess.js";
 import Modal from "react-bootstrap/Modal";
-
 import axios, * as others from 'axios';
 const blackKing = require('./black-king.png') 
 const whiteKing = require('./white-king.png') 
@@ -24,7 +23,11 @@ class ConfiguredBoard extends React.Component {
             pgn:'',
             historyPGN:[],
             lastMove:-1,
-            bestmove:{}
+            bestmove:{},
+            eval:'',
+            openGame:0,
+            gameDetails:[],
+            depth:10
         }
     }
     componentDidMount() {
@@ -62,7 +65,7 @@ class ConfiguredBoard extends React.Component {
             this.setState(()=>{
                 return {inputFen:this.game.fen(),historyPGN:this.game.history(),lastMove:this.game.history().length-1}
             }) 
-            this.getSuggestion()                        
+            this.getSuggestion()          
             return true;
         }
         else{
@@ -114,10 +117,13 @@ class ConfiguredBoard extends React.Component {
                 inputFen:defaultFen, 
                 flag:false, 
                 reason:'',
-                isOpen:true
+                isOpen:true,
+                bestmove:{},
+                eval:''
             }
             })
         this.game = new Chess();
+        this.getSuggestion()
     }
     closePopup =() =>{
         this.setState(()=>{return {isOpen:false}})
@@ -172,11 +178,8 @@ class ConfiguredBoard extends React.Component {
     }
     loadGame=()=>{
         const response = axios.post(`../../../getmove`, {fen: this.state.fromInputFen});
-        console.log(response.data)
         const value =this.state.fromInputFen
-        console.log(value)
         this.game.load(value)
-        console.log(this.game.load(value))
         this.setState(()=>{
             return{inputFen:this.game.fen()}
         })
@@ -191,27 +194,52 @@ class ConfiguredBoard extends React.Component {
 
     }
     storePGN = (result) =>{
-        console.log('getting called')
         this.selectedPGN = result
         
     }
     loadPGN =() =>{
         let temparr = []
+        let details= ''
         temparr = this.selectedPGN.split("[Event")
         if(temparr[0] === ""){
             temparr.shift()
         }
-        temparr[0] = temparr[0].trim()
-        temparr[0] = '[Event ' + temparr[0];          
-        console.log(this.game.loadPgn(temparr[0]))
-        this.game.loadPgn(temparr[0])
+        temparr[this.state.openGame] = temparr[this.state.openGame].trim()
+        temparr[this.state.openGame] = '[Event ' + temparr[this.state.openGame];   
+        console.log(temparr)       
+        details = (temparr[this.state.openGame].slice(0,temparr[this.state.openGame].indexOf("1. ")).replace(/(\r\n|\n|\r)/gm, ""))
+        details = details.replaceAll('[', '').split(']')
+        if(details[details.length-1] == ""){
+            details.pop()
+        }
+        let minDetails = details.filter((currentValue, index, arr) =>{
+            if(currentValue.includes("Event") || currentValue.includes("White") || currentValue.includes("Black") || currentValue.includes("Result")){
+                return true
+            }
+        })
+        this.game.loadPgn(temparr[this.state.openGame])
         this.setState(()=>{
             return {inputFen:this.game.fen()}
         })
         this.setState(()=>{
             return {historyPGN: this.game.history()}
         })
-        
+        console.log(details)
+        this.setState(()=>{
+            return {gameDetails: minDetails}
+        })
+    }
+    loadNextPGN =() =>{
+        this.setState(()=>{
+            return {openGame:this.state.openGame + 1}
+        })
+        this.loadPGN()
+    }
+    loadPrevPGN = () =>{
+        this.setState(()=>{
+            return {openGame:this.state.openGame - 1}
+        })
+        this.loadPGN()
     }
     importChessData = () =>{
         return(
@@ -226,8 +254,19 @@ class ConfiguredBoard extends React.Component {
                     <input type={"file"} onChange={this.getPGNFile}/>
                     <span>{}</span>
                     <button className="btn btn-outline-primary" onClick={this.loadPGN} >Load PGN</button>
+                    <button className="btn btn-outline-primary" onClick={this.loadNextPGN} >Next</button>
+                    <button className="btn btn-outline-primary" onClick={this.loadPrevPGN} >Previous</button>
+
                     <button className="btn btn-outline-secondary" onClick={this.recallMove} >Undo</button>
-                </div>          
+                </div>
+                <input className="form-control" value={this.currentFen()} readOnly></input>
+                {this.state.gameDetails.map((val,index)=>{
+                    return (
+                        <p key={index} >
+                                { val }
+                              </p>
+                    )
+                })}
             </div>
         )
     }
@@ -237,7 +276,6 @@ class ConfiguredBoard extends React.Component {
         let newgame = new Chess()
         var history = this.state.historyPGN;
         for (var i = 0; i < index+1; i++) {
-            console.log(newgame.move(history[i]), history[i])
             newgame.move(history[i]); 
         }
         this.setState(()=>{
@@ -246,7 +284,6 @@ class ConfiguredBoard extends React.Component {
     }
     recallMove = () => {
         this.game.undo()
-        console.log(this.game.undo())
     }
     gamecontrols = () => {
         return(
@@ -255,37 +292,98 @@ class ConfiguredBoard extends React.Component {
                 <button className="btn btn-outline-primary" onClick={()=> this.movetomove(this.state.lastMove +1)}>Next Move</button>
                 <button className="btn btn-outline-secondary" onClick={()=> this.movetomove(0)}>Reset Board</button>
                 <button className="btn btn-outline-secondary" onClick={this.resetBoard}>New Game</button>
-                <button className="btn btn-outline-secondary" onClick={this.getEval}>Get Evaluation</button>
+                {/* <button className="btn btn-outline-secondary" onClick={this.getEval}>Get Evaluation</button> */}
             </div>
         )
     }
     currentFen = () => {
         return this.game.fen()
     }
-    getEval = ()=>{
-        axios.post(`../../../getEval`, {fen: this.game.fen(), depth:"18"}).then((response)=> {
-            console.log(response.data);
-          })
-          .catch(function (error) {
-            console.log(error);
-          });
+    getPosition = (string, subString, index)=> {
+        return string.split(subString, index).join(subString).length;
+    }
+    sendEval = (data) =>{
+        
+        if(this.state.eval){
+            let temp = this.state.eval
+            let score = ''
+            let moves = ''
+            let scoreValue = [] 
+            let indMoves = []
+            let color=""
+            let evalscore = ""
+            let evalbarscore = 0
+            let cc = this.game.turn()
+            score = temp.slice(temp.indexOf('score'), temp.indexOf('nodes'))
+            scoreValue = score.split(" ")
+            moves = temp.slice(this.getPosition(temp, 'pv ', 2), temp.indexOf('bmc'))
+            indMoves = moves.split(" ")
+            indMoves.shift()
+            evalbarscore= Number(scoreValue[2])/100
+            if(scoreValue[1] === 'mate'){
+                evalscore = 'Mate in ' + scoreValue[2]
+                if(cc === 'w'){
+                    evalbarscore = 10;
+                }
+                else{
+                    evalbarscore = -10;
+                }
+            }
+            else{
+                evalscore = Number(scoreValue[2])/100
+            }
+            console.log(scoreValue[1])
+            if(cc === 'w'){
+                color = "White"           
+            }
+            else{
+                color = "Black"
+            }
+            return(
+                <div className="col-12 d-flex flex-row">
+                    <div>
+                        <h4>Moves from analysis</h4>
+                        <label>Depth</label>
+                    <input type="number" value={this.state.depth} onChange={this.setDepth} onBlur={this.getSuggestion}></input>
+                    <div className="d-flex flex-wrap">{
+                        indMoves.map((val, index) => {
+                            return (
+                                <div key={index} className="col-6 ">
+                                { val }
+                              </div>
+                             );
+                            })
+                        }</div>
+                    </div>
+                    <div className="d-flex flex-column align-items-center">
+                        <div>{color}: {evalscore}</div>
+                        <input type="range" min="-10" max="10" value={evalbarscore} className="slider" id="myRange" orient="vertical" readOnly></input>
+                    </div>
+                </div>
+            )
+        }
+        else{
+            return(
+                <div>Loading Evaluation</div>
+            );
+        }
     }
     getSuggestion = () => {
         let data;
         this.setState(()=>{
-            return {bestmove:{}}
+            return {bestmove:{},eval:''}
         })
-        axios.post(`../../../getmove`, {fen: this.game.fen(), depth:"18"}).then((response) => {
+        axios.post(`../../../getmove`, {fen: this.game.fen(), depth:this.state.depth}).then((response) => {
             data= response.data
             this.setState(()=>{
-                return {bestmove:data.bestMove}
+                return {bestmove:data.bestMove, eval: data.extra[data.extra.length - 2]}
             })
+            /* this.getEval() */
             
         })
           .catch(function (error) {
               console.log(error);
             });
-        console.log(this.state.bestmove)
     }
     sendSuggestion = () => {
         if(this.state.bestmove.from){
@@ -318,7 +416,7 @@ class ConfiguredBoard extends React.Component {
                     break;
             }
             return(
-                <div>
+                <div className="d-flex flex-row align-items-baseline justify-content-center mt-3" >
                     <h4>Best Move:</h4>
                     <p>{color} {piece} on {this.state.bestmove.from} to {this.state.bestmove.to}</p>
                 </div>
@@ -332,13 +430,18 @@ class ConfiguredBoard extends React.Component {
             )
         }
     }
+    setDepth = (even) =>{
+        this.setState(()=>{
+            return {depth: even.target.value}
+        })
+    }
     //select game from PGN file
     render(){
         return(
             !this.state.flag?
             <div className="col-12 d-flex justify-content-center mt-3">
-                <div className="d-flex flex-column col-2">
-                    <div>{this.sendSuggestion()}</div>
+                <div className="d-flex flex-column col-2 mr-3">
+                    <div>{this.sendEval()}</div>
                 </div>
                 <div>
                 <Chessboard id="BasicBoard" 
@@ -352,7 +455,7 @@ class ConfiguredBoard extends React.Component {
                 customBoardStyle ={{boxShadow: 'rgb(102 102 102) 0px 5px 15px'}}
                 />
                 <div>{this.gamecontrols()}</div>
-                <div>{this.currentFen()}</div>
+                <div>{this.sendSuggestion()}</div>
                 </div>
                 <div className="d-flex flex-column col-2">
                 <div className="ml-5">
@@ -360,6 +463,7 @@ class ConfiguredBoard extends React.Component {
                 </div>
                 <div className="ml-5">
                     {this.importChessData()}
+
                 </div>
                 </div>
             </div>
